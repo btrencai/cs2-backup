@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CS2 Config Backup",
+  "version": "2.1.0",
+  "identifier": "com.cs2backup.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CS2 配置备份",
+        "width": 1024,
+        "height": 700,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "CS2 Config Backup Team",
+    "copyright": "Copyright © 2026 CS2 Config Backup. All rights reserved.",
+    "shortDescription": "CS2 配置备份与快速恢复工具",
+    "longDescription": "CS2 Config Backup 用于管理 CS2 全局 cfg 与 Steam userdata 配置备份，支持快速恢复、编辑和 ZIP 导出。",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "language": {
+          "zh-CN": {
+            "localePath": "wix/zh-CN.wxl"
+          }
+        }
+      },
+      "nsis": {
+        "languages": ["SimpChinese"]
+      }
+    }
+  }
+}
