@@ -169,6 +169,7 @@ CS2 Config Backup_2.1.0_x64_zh-CN.msi
 
 ```text
 .github/workflows/ci.yml
+.github/workflows/release.yml
 ```
 
 CI 会在 `main` 分支 push 和 pull request 时执行：
@@ -176,6 +177,14 @@ CI 会在 `main` 分支 push 和 pull request 时执行：
 - `npm ci`
 - `npm run build`
 - `cargo check`
+
+Release 会在推送 `v*` 标签或手动触发时执行：
+
+- Windows 环境构建 Tauri 应用
+- 生成 NSIS `.exe` 安装包
+- 生成中文 WiX `.msi` 安装包
+- 创建 GitHub Release
+- 上传安装包到 Release Assets
 
 ## 版本记录
 

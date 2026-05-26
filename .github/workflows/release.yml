@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Installers
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish Tauri release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: CS2 Config Backup v__VERSION__
+          releaseBody: |
+            ## CS2 Config Backup v__VERSION__
+
+            Windows 安装包已由 GitHub Actions 自动构建并上传。
+
+            - EXE：推荐普通用户安装
+            - MSI：中文安装界面，适合企业或批量部署
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis,msi
