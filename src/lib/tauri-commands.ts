@@ -261,3 +261,11 @@ export async function downloadUpdate(url: string): Promise<string> {
 export async function installUpdate(exePath: string): Promise<void> {
   return invoke("install_update", { exePath });
 }
+
+export async function getLatestVersion(): Promise<string> {
+  return invoke<string>("get_latest_version");
+}
+
+export async function getAppVersion(): Promise<string> {
+  return invoke<string>("get_app_version");
+}

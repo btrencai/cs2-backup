@@ -8,8 +8,12 @@ import {
   openFolder,
   saveSettings,
   sourceKindLabel,
+  checkForUpdate,
+  getLatestVersion,
+  getAppVersion,
   type AppSettings,
   type ConfigTarget,
+  type UpdateInfo,
 } from "../lib/tauri-commands";
 
 function TargetMiniIcon({ target }: { target: ConfigTarget }) {
@@ -45,18 +49,26 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [defaultBackupPath, setDefaultBackupPath] = useState("");
+  const [appVersion, setAppVersion] = useState("");
+  const [latestVersion, setLatestVersion] = useState("");
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextSettings, defaultPath, detectedTargets] = await Promise.all([
+      const [nextSettings, defaultPath, detectedTargets, currentVer, latestVer] = await Promise.all([
         getSettings(),
         getDefaultBackupPath(),
         detectConfigTargets(),
+        getAppVersion(),
+        getLatestVersion().catch(() => ""),
       ]);
       setSettings(nextSettings);
       setDefaultBackupPath(defaultPath);
       setTargets(detectedTargets);
+      setAppVersion(currentVer);
+      setLatestVersion(latestVer);
     } catch (e) {
       toast.danger("加载设置失败", { description: String(e) });
     } finally {
@@ -99,6 +111,28 @@ export default function Settings() {
       await openFolder(path);
     } catch (e) {
       toast.danger("无法打开目录", { description: String(e) });
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const currentVer = appVersion || (await getAppVersion());
+      const info = await checkForUpdate(currentVer);
+      if (info) {
+        setUpdateInfo(info);
+        setLatestVersion(info.version);
+        toast.success("发现新版本", { description: `${info.tag} 已发布` });
+      } else {
+        const latest = await getLatestVersion().catch(() => "");
+        if (latest) setLatestVersion(latest);
+        setUpdateInfo(null);
+        toast.success("已是最新版本", { description: `当前版本 v${currentVer}` });
+      }
+    } catch (e) {
+      toast.danger("检测更新失败", { description: String(e) });
+    } finally {
+      setCheckingUpdate(false);
     }
   };
 
@@ -188,6 +222,42 @@ export default function Settings() {
                 </span>
               </button>
             ))
+          )}
+        </div>
+      </section>
+
+      <section className="card pad settings-section">
+        <div className="card-title-row">
+          <h2 className="card-title">
+            <CsgoIcon />
+            版本信息
+          </h2>
+          <button className="button accent" type="button" disabled={checkingUpdate} onClick={handleCheckUpdate}>
+            {checkingUpdate ? <span className="spinner" /> : <Icon path="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />}
+            检测更新
+          </button>
+        </div>
+        <div className="version-info-grid">
+          <div className="version-item">
+            <span className="version-label">当前版本</span>
+            <span className="version-value">v{appVersion}</span>
+          </div>
+          <div className="version-item">
+            <span className="version-label">最新版本</span>
+            <span className={`version-value${updateInfo ? " has-update" : ""}`}>
+              {latestVersion ? `v${latestVersion}` : "未检测"}
+            </span>
+          </div>
+          {updateInfo && (
+            <div className="version-update-hint">
+              <span className="badge accent">有新版本</span>
+              <span className="muted">启动时会自动提示更新，也可重启应用触发自动检测。</span>
+            </div>
+          )}
+          {!updateInfo && latestVersion && (
+            <div className="version-update-hint">
+              <span className="badge green">已是最新</span>
+            </div>
           )}
         </div>
       </section>

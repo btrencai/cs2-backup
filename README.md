@@ -6,7 +6,7 @@
   <p>面向 Counter-Strike 2 的本地配置备份、恢复、编辑与导出工具。</p>
 
   <p>
-    <img alt="version" src="https://img.shields.io/badge/version-v2.2.0-f59e0b?style=for-the-badge" />
+    <img alt="version" src="https://img.shields.io/badge/version-v2.2.1-f59e0b?style=for-the-badge" />
     <img alt="status" src="https://img.shields.io/badge/status-active-22c55e?style=for-the-badge" />
     <img alt="platform" src="https://img.shields.io/badge/platform-Windows-38bdf8?style=for-the-badge" />
     <img alt="stack" src="https://img.shields.io/badge/Tauri_2-React_19-111827?style=for-the-badge" />
@@ -87,8 +87,8 @@ npm run tauri build
 构建产物位于：
 
 ```
-src-tauri/target/release/bundle/nsis/CS2 Config Backup_2.2.0_x64-setup.exe
-src-tauri/target/release/bundle/msi/CS2 Config Backup_2.2.0_x64_zh-CN.msi
+src-tauri/target/release/bundle/nsis/CS2 Config Backup_2.2.1_x64-setup.exe
+src-tauri/target/release/bundle/msi/CS2 Config Backup_2.2.1_x64_zh-CN.msi
 ```
 
 ## 目录结构
@@ -136,6 +136,7 @@ cd src-tauri && cargo fmt
 
 | 版本 | 重点 |
 | --- | --- |
+| `v2.2.1` | 设置页版本信息与手动检测更新、GitHub CDN 加速 |
 | `v2.2.0` | Auto.cfg 可视化编辑器、自动更新检测与静默安装 |
 | `v2.1.1` | 修复编辑器"保存并关闭"bug、提取共享组件、仪表盘总大小统计、list_backups 性能优化 |
 | `v2.1.0` | 首次启动引导、中文 MSI、备份头像展示 |

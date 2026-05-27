@@ -5,11 +5,11 @@ import {
   checkForUpdate,
   downloadUpdate,
   installUpdate,
+  getAppVersion,
   formatDate,
   type UpdateInfo,
 } from "../lib/tauri-commands";
 
-const APP_VERSION = "2.2.0";
 const CHECK_DELAY_MS = 3000;
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -26,7 +26,8 @@ export default function UpdateChecker() {
 
   const doCheck = useCallback(async () => {
     try {
-      const info = await checkForUpdate(APP_VERSION);
+      const version = await getAppVersion();
+      const info = await checkForUpdate(version);
       if (info) {
         setUpdate(info);
         setDismissed(false);

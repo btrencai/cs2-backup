@@ -1,6 +1,6 @@
 [package]
 name = "cs2-backup"
-version = "2.2.0"
+version = "2.2.1"
 description = "CS2 Config Backup Tool"
 authors = ["CS2 Config Backup Team"]
 edition = "2021"

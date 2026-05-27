@@ -665,6 +665,17 @@ fn install_update(exe_path: String) -> Result<(), String> {
     updater::install_and_restart(std::path::Path::new(&exe_path))
 }
 
+#[tauri::command]
+fn get_latest_version() -> Result<String, String> {
+    let (version, _) = updater::fetch_latest_version()?;
+    Ok(version)
+}
+
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let settings = load_settings();
@@ -700,6 +711,8 @@ pub fn run() {
             check_update,
             download_update,
             install_update,
+            get_latest_version,
+            get_app_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
