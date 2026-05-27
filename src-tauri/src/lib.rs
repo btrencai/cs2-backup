@@ -7,12 +7,14 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tauri::Manager;
 use tauri::State;
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
 mod path_detect;
+mod cfg_parser;
 
 const TARGETS_CACHE_TTL: Duration = Duration::from_secs(5);
 
@@ -603,6 +605,49 @@ fn create_backup_inner(
     })
 }
 
+#[tauri::command]
+fn read_auto_cfg(cfg_dir: String) -> Result<Vec<cfg_parser::CfgSection>, String> {
+    let (_, sections) = cfg_parser::read_cfg_file(&cfg_dir)?;
+    Ok(sections)
+}
+
+#[tauri::command]
+fn write_auto_cfg(cfg_dir: String, sections: Vec<cfg_parser::CfgSection>) -> Result<(), String> {
+    cfg_parser::write_cfg_file(&cfg_dir, &sections)
+}
+
+#[tauri::command]
+fn get_auto_cfg_template(app: tauri::AppHandle) -> Result<Vec<cfg_parser::CfgSection>, String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?;
+
+    let template_path = resource_dir.join("auto.cfg");
+    if template_path.exists() {
+        let content = fs::read_to_string(&template_path).map_err(|e| e.to_string())?;
+        return Ok(cfg_parser::parse_template(&content));
+    }
+
+    Err("找不到 auto.cfg 模板文件".to_string())
+}
+
+#[tauri::command]
+fn install_auto_cfg_template(cfg_dir: String, app: tauri::AppHandle) -> Result<(), String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?;
+
+    let template_path = resource_dir.join("auto.cfg");
+    if !template_path.exists() {
+        return Err("找不到 auto.cfg 模板文件".to_string());
+    }
+
+    let content = fs::read_to_string(&template_path).map_err(|e| e.to_string())?;
+    cfg_parser::install_template(&cfg_dir, &content)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let settings = load_settings();
@@ -631,6 +676,10 @@ pub fn run() {
             save_cfg_file,
             list_cfg_files,
             export_backup_zip,
+            read_auto_cfg,
+            write_auto_cfg,
+            get_auto_cfg_template,
+            install_auto_cfg_template,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

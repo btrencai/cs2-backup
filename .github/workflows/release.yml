@@ -42,8 +42,31 @@ jobs:
 
             Windows 安装包已由 GitHub Actions 自动构建并上传。
 
-            - EXE：推荐普通用户安装
-            - MSI：中文安装界面，适合企业或批量部署
+            ### 安装说明
+
+            | 文件 | 说明 |
+            | --- | --- |
+            | `CS2 Config Backup_*_x64-setup.exe` | NSIS 安装包，推荐普通用户使用 |
+            | `CS2 Config Backup_*_x64_zh-CN.msi` | 中文 WiX 安装包，适合企业或批量部署 |
+
+            ### 本次更新
+
+            - **Auto.cfg 可视化编辑器**：新增专用页面，按分组（鼠标、准星、视频、键位、快速买枪、基础设置、声音、HUD）可视化编辑全局 cfg 目录下的 auto.cfg
+              - 开关控件（0/1 切换）、滑块 + 数字输入（带范围参数）、文本输入
+              - 每条设置右侧显示中文说明
+              - 支持从内置模板一键创建 auto.cfg
+              - 原始视图查看完整 cfg 文本
+              - Ctrl+S 快捷保存
+            - 修复 CFG 编辑器"保存并关闭"按钮在保存失败时仍会关闭编辑器的问题
+            - 提取共享 Icon 组件，消除 7 个文件中的重复定义
+            - 仪表盘统计卡片新增"总大小"
+            - `list_backups` 引入配置目标缓存（5 秒 TTL），页面加载更快
+
+            ### 系统要求
+
+            - Windows 10 / 11（内置 WebView2 Runtime）
+
+            完整更新日志见 [CHANGELOG.md](https://github.com/btrencai/cs2-backup/blob/main/CHANGELOG.md)。
           releaseDraft: false
           prerelease: false
           args: --bundles nsis,msi

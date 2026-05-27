@@ -33,6 +33,21 @@ export interface AppSettings {
   setup_completed: boolean;
 }
 
+export interface CfgEntry {
+  key: string;
+  value: string;
+  comment: string;
+  value_type: "toggle" | "number" | "string";
+  min: number | null;
+  max: number | null;
+}
+
+export interface CfgSection {
+  name: string;
+  header_lines: string[];
+  entries: CfgEntry[];
+}
+
 export async function detectCs2Path(): Promise<string> {
   return invoke<string>("detect_cs2_path");
 }
@@ -209,4 +224,20 @@ export function formatRelativeTime(dateStr: string): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days} 天前`;
   return formatDate(dateStr);
+}
+
+export async function readAutoCfg(cfgDir: string): Promise<CfgSection[]> {
+  return invoke<CfgSection[]>("read_auto_cfg", { cfgDir });
+}
+
+export async function writeAutoCfg(cfgDir: string, sections: CfgSection[]): Promise<void> {
+  return invoke("write_auto_cfg", { cfgDir, sections });
+}
+
+export async function getAutoCfgTemplate(): Promise<CfgSection[]> {
+  return invoke<CfgSection[]>("get_auto_cfg_template");
+}
+
+export async function installAutoCfgTemplate(cfgDir: string): Promise<void> {
+  return invoke("install_auto_cfg_template", { cfgDir });
 }

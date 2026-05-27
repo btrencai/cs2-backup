@@ -4,6 +4,7 @@ import FirstRunSetup from "./components/FirstRunSetup";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import BackupList from "./pages/BackupList";
+import AutoCfgEditor from "./pages/AutoCfgEditor";
 import Settings from "./pages/Settings";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/backups" element={<BackupList />} />
+            <Route path="/auto-cfg" element={<AutoCfgEditor />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>
