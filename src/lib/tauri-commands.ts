@@ -241,3 +241,23 @@ export async function getAutoCfgTemplate(): Promise<CfgSection[]> {
 export async function installAutoCfgTemplate(cfgDir: string): Promise<void> {
   return invoke("install_auto_cfg_template", { cfgDir });
 }
+
+export interface UpdateInfo {
+  version: string;
+  tag: string;
+  body: string;
+  exe_url: string;
+  published_at: string;
+}
+
+export async function checkForUpdate(currentVersion: string): Promise<UpdateInfo | null> {
+  return invoke<UpdateInfo | null>("check_update", { currentVersion });
+}
+
+export async function downloadUpdate(url: string): Promise<string> {
+  return invoke<string>("download_update", { url });
+}
+
+export async function installUpdate(exePath: string): Promise<void> {
+  return invoke("install_update", { exePath });
+}

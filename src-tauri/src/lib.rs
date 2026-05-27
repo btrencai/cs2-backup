@@ -15,6 +15,7 @@ use zip::CompressionMethod;
 
 mod path_detect;
 mod cfg_parser;
+mod updater;
 
 const TARGETS_CACHE_TTL: Duration = Duration::from_secs(5);
 
@@ -648,6 +649,22 @@ fn install_auto_cfg_template(cfg_dir: String, app: tauri::AppHandle) -> Result<(
     cfg_parser::install_template(&cfg_dir, &content)
 }
 
+#[tauri::command]
+fn check_update(current_version: String) -> Option<updater::UpdateInfo> {
+    updater::check_github_update(&current_version)
+}
+
+#[tauri::command]
+fn download_update(url: String, app: tauri::AppHandle) -> Result<String, String> {
+    let path = updater::download_update(&url, &app)?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn install_update(exe_path: String) -> Result<(), String> {
+    updater::install_and_restart(std::path::Path::new(&exe_path))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let settings = load_settings();
@@ -680,6 +697,9 @@ pub fn run() {
             write_auto_cfg,
             get_auto_cfg_template,
             install_auto_cfg_template,
+            check_update,
+            download_update,
+            install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

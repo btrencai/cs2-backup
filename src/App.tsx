@@ -1,6 +1,7 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { ToastProvider } from "@heroui/react";
 import FirstRunSetup from "./components/FirstRunSetup";
+import UpdateChecker from "./components/UpdateChecker";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import BackupList from "./pages/BackupList";
@@ -22,6 +23,7 @@ function App() {
         </Layout>
       </HashRouter>
       <FirstRunSetup />
+      <UpdateChecker />
     </>
   );
 }
