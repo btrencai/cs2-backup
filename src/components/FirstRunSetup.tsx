@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@heroui/react";
+import { Icon } from "./Icons";
 import {
   getDefaultBackupPath,
   getSettings,
@@ -7,14 +8,6 @@ import {
   selectBackupFolder,
   type AppSettings,
 } from "../lib/tauri-commands";
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
-    </svg>
-  );
-}
 
 export default function FirstRunSetup() {
   const [settings, setSettings] = useState<AppSettings | null>(null);

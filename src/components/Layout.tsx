@@ -74,7 +74,7 @@ export default function Layout({ children }: LayoutProps) {
 
       <main className="page">{children}</main>
       <footer className="app-footer">
-        <span>CS2 Config Backup v2.1.0</span>
+        <span>CS2 Config Backup v2.1.1</span>
         <span>Copyright © 2026 CS2 Config Backup. All rights reserved.</span>
       </footer>
       <ThemeToggle />

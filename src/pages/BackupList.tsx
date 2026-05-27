@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import AvatarSelect, { type AvatarSelectOption } from "../components/AvatarSelect";
 import BackupCard from "../components/BackupCard";
 import CfgEditor from "../components/CfgEditor";
+import { Icon, CsgoIcon } from "../components/Icons";
 import {
   deleteBackup,
   exportBackupZip,
@@ -22,18 +23,6 @@ interface UserBackupGroup {
   path: string;
   avatarUrl: string | null;
   backups: BackupInfo[];
-}
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
-    </svg>
-  );
-}
-
-function CsgoIcon({ className = "inline-csgo-icon", alt = "" }: { className?: string; alt?: string }) {
-  return <img className={className} src="/csgo-icon.svg" alt={alt} draggable={false} />;
 }
 
 function accountIdFromPath(path: string): string {

@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@heroui/react";
+import { Icon } from "./Icons";
 import { listCfgFiles, readCfgFile, saveCfgFile } from "../lib/tauri-commands";
 
 interface CfgEditorProps {
   isOpen: boolean;
   onClose: () => void;
   cs2Path: string;
-}
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
-    </svg>
-  );
 }
 
 export default function CfgEditor({ isOpen, onClose, cs2Path }: CfgEditorProps) {
@@ -66,15 +59,17 @@ export default function CfgEditor({ isOpen, onClose, cs2Path }: CfgEditorProps) 
 
   const lineCount = useMemo(() => (content ? content.split(/\r\n|\r|\n/).length : 0), [content]);
 
-  const handleSave = async () => {
-    if (!selectedFile || !cs2Path || saving) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!selectedFile || !cs2Path || saving) return false;
     setSaving(true);
     try {
       await saveCfgFile(cs2Path, selectedFile, content);
       setModified(false);
       toast.success("CFG 已保存", { description: selectedFile });
+      return true;
     } catch (e) {
       toast.danger("保存失败", { description: String(e) });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -217,9 +212,11 @@ export default function CfgEditor({ isOpen, onClose, cs2Path }: CfgEditorProps) 
                 className="button primary"
                 type="button"
                 onClick={async () => {
-                  await handleSave();
-                  setCloseConfirmOpen(false);
-                  onClose();
+                  const saved = await handleSave();
+                  if (saved) {
+                    setCloseConfirmOpen(false);
+                    onClose();
+                  }
                 }}
               >
                 保存并关闭

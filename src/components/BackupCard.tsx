@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { BackupInfo } from "../lib/tauri-commands";
+import { Icon, CsgoIcon, USER_ICON_PATH } from "./Icons";
 import {
   formatDate,
   formatFileSize,
@@ -18,21 +19,6 @@ interface BackupCardProps {
   onExport: (name: string) => void;
   exporting?: boolean;
 }
-
-function Icon({ path }: { path: string }) {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
-    </svg>
-  );
-}
-
-function CsgoIcon() {
-  return <img className="backup-row-logo" src="/csgo-icon.svg" alt="" draggable={false} />;
-}
-
-const USER_ICON_PATH =
-  "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z";
 
 function BackupSourceMark({ backup }: { backup: BackupInfo }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -57,7 +43,7 @@ function BackupSourceMark({ backup }: { backup: BackupInfo }) {
 
   return (
     <span className="backup-row-mark global">
-      <CsgoIcon />
+      <CsgoIcon className="backup-row-logo" alt="" />
     </span>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { UserIcon } from "./Icons";
 
 export interface AvatarSelectOption {
   id: string;
@@ -13,17 +14,6 @@ interface AvatarSelectProps {
   value: string;
   onChange: (value: string) => void;
   emptyText?: string;
-}
-
-const USER_ICON_PATH =
-  "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z";
-
-function UserIcon() {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={USER_ICON_PATH} />
-    </svg>
-  );
 }
 
 function Avatar({ option }: { option: AvatarSelectOption }) {

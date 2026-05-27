@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import AvatarSelect, { type AvatarSelectOption } from "../components/AvatarSelect";
+import { Icon, CsgoIcon, USER_ICON_PATH } from "../components/Icons";
 import {
   createBackup,
   detectConfigTargets,
@@ -19,24 +20,9 @@ import {
   type ConfigTarget,
 } from "../lib/tauri-commands";
 
-function Icon({ path }: { path: string }) {
-  return (
-    <svg className="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
-    </svg>
-  );
-}
-
-function CsgoIcon({ className = "inline-csgo-icon", alt = "" }: { className?: string; alt?: string }) {
-  return <img className={className} src="/csgo-icon.svg" alt={alt} draggable={false} />;
-}
-
 function GlobalCfgIcon() {
   return <img className="target-logo" src="/csgo-icon.svg" alt="CS2 全局 cfg" draggable={false} />;
 }
-
-const USER_ICON_PATH =
-  "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z";
 
 function BackupSourceMark({ backup }: { backup: BackupInfo }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -287,6 +273,11 @@ export default function Dashboard() {
           <p className="stat-label">文件总数</p>
           <p className="stat-value">{stats.totalFiles}</p>
           <p className="stat-note">不含元数据文件</p>
+        </div>
+        <div className="card stat-card">
+          <p className="stat-label">总大小</p>
+          <p className="stat-value">{formatFileSize(stats.totalSize)}</p>
+          <p className="stat-note">所有备份合计</p>
         </div>
         <div className="card stat-card">
           <p className="stat-label">最近备份</p>

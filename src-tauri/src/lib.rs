@@ -6,12 +6,20 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::State;
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
 mod path_detect;
+
+const TARGETS_CACHE_TTL: Duration = Duration::from_secs(5);
+
+struct TargetsCache {
+    targets: Vec<path_detect::ConfigTarget>,
+    fetched_at: Instant,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BackupInfo {
@@ -46,6 +54,34 @@ impl Default for AppSettings {
 
 pub struct AppState {
     pub settings: Mutex<AppSettings>,
+    targets_cache: Mutex<Option<TargetsCache>>,
+}
+
+impl AppState {
+    fn get_config_targets(&self) -> Vec<path_detect::ConfigTarget> {
+        let mut cache = self.targets_cache.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(ref cached) = *cache {
+            if cached.fetched_at.elapsed() < TARGETS_CACHE_TTL {
+                return cached.targets.clone();
+            }
+        }
+        let targets = path_detect::find_config_targets();
+        *cache = Some(TargetsCache {
+            targets: targets.clone(),
+            fetched_at: Instant::now(),
+        });
+        targets
+    }
+
+    fn refresh_config_targets(&self) -> Vec<path_detect::ConfigTarget> {
+        let targets = path_detect::find_config_targets();
+        let mut cache = self.targets_cache.lock().unwrap_or_else(|e| e.into_inner());
+        *cache = Some(TargetsCache {
+            targets: targets.clone(),
+            fetched_at: Instant::now(),
+        });
+        targets
+    }
 }
 
 fn get_backup_dir() -> PathBuf {
@@ -180,8 +216,8 @@ fn detect_all_cs2_paths() -> Vec<String> {
 }
 
 #[tauri::command]
-fn detect_config_targets() -> Vec<path_detect::ConfigTarget> {
-    path_detect::find_config_targets()
+fn detect_config_targets(state: State<AppState>) -> Vec<path_detect::ConfigTarget> {
+    state.refresh_config_targets()
 }
 
 #[tauri::command]
@@ -199,14 +235,14 @@ fn save_settings_cmd(state: State<AppState>, settings: AppSettings) -> Result<()
 }
 
 #[tauri::command]
-fn list_backups() -> Result<Vec<BackupInfo>, String> {
+fn list_backups(state: State<AppState>) -> Result<Vec<BackupInfo>, String> {
     let backup_dir = get_backup_dir();
     let mut backups = Vec::new();
-    let detected_targets: HashMap<String, path_detect::ConfigTarget> =
-        path_detect::find_config_targets()
-            .into_iter()
-            .map(|target| (source_path_key(&target.path), target))
-            .collect();
+    let detected_targets: HashMap<String, path_detect::ConfigTarget> = state
+        .get_config_targets()
+        .into_iter()
+        .map(|target| (source_path_key(&target.path), target))
+        .collect();
 
     if !backup_dir.exists() {
         return Ok(backups);
@@ -576,6 +612,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             settings: Mutex::new(settings),
+            targets_cache: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             detect_cs2_path,
