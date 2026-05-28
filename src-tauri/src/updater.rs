@@ -8,19 +8,37 @@ use std::process::Command;
 use tauri::{AppHandle, Emitter};
 
 const REPO: &str = "btrencai/cs2-backup";
-const GITHUB_API_BASE: &str = "https://api.github.com/repos";
-const CDN_PREFIX: &str = "https://ghfast.top/";
+const DIRECT_API: &str = "https://api.github.com";
 
-fn api_url() -> String {
-    format!("{}{}/releases/latest", CDN_PREFIX, format!("{GITHUB_API_BASE}/{REPO}"))
+/// CDN proxies for GitHub — tried in order, first success wins.
+const CDN_PROXIES: &[&str] = &[
+    "https://ghproxy.cn/",
+    "https://mirror.ghproxy.com/",
+    "https://ghfast.top/",
+];
+
+fn api_urls() -> Vec<String> {
+    let direct = format!("{DIRECT_API}/repos/{REPO}/releases/latest");
+    let mut urls: Vec<String> = CDN_PROXIES
+        .iter()
+        .map(|cdn| format!("{cdn}{direct}"))
+        .collect();
+    urls.push(direct);
+    urls
 }
 
-fn cdn_asset_url(original: &str) -> String {
-    if original.starts_with("https://github.com/") || original.starts_with("https://objects.githubusercontent.com/") {
-        format!("{CDN_PREFIX}{original}")
-    } else {
-        original.to_string()
+fn asset_urls(original: &str) -> Vec<String> {
+    if !original.starts_with("https://github.com/")
+        && !original.starts_with("https://objects.githubusercontent.com/")
+    {
+        return vec![original.to_string()];
     }
+    let mut urls: Vec<String> = CDN_PROXIES
+        .iter()
+        .map(|cdn| format!("{cdn}{original}"))
+        .collect();
+    urls.push(original.to_string());
+    urls
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,17 +72,22 @@ fn build_client(timeout_secs: u64) -> Result<Client, String> {
         .map_err(|e| e.to_string())
 }
 
-fn fetch_latest_release(client: &Client) -> Result<GhRelease, String> {
-    let url = api_url();
-    let resp = client
-        .get(&url)
-        .send()
-        .map_err(|e| format!("网络请求失败: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(format!("HTTP {}", resp.status()));
+/// Try each URL in order; return the first successful response.
+fn try_get(client: &Client, urls: &[String]) -> Result<reqwest::blocking::Response, String> {
+    let mut last_err = String::new();
+    for url in urls {
+        match client.get(url).send() {
+            Ok(resp) if resp.status().is_success() => return Ok(resp),
+            Ok(resp) => last_err = format!("HTTP {}", resp.status()),
+            Err(e) => last_err = e.to_string(),
+        }
     }
+    Err(format!("所有连接均失败: {last_err}"))
+}
 
+fn fetch_latest_release(client: &Client) -> Result<GhRelease, String> {
+    let urls = api_urls();
+    let resp = try_get(client, &urls)?;
     resp.json::<GhRelease>()
         .map_err(|e| format!("解析响应失败: {e}"))
 }
@@ -89,34 +112,31 @@ pub fn check_github_update(current_version: &str) -> Option<UpdateInfo> {
     })?;
 
     let raw_url = exe_asset.browser_download_url.clone();
+    let cdn_url = asset_urls(&raw_url).into_iter().next().unwrap_or(raw_url);
 
     Some(UpdateInfo {
         version: tag_version.to_string(),
         tag: tag.to_string(),
         body: release.body,
-        exe_url: cdn_asset_url(&raw_url),
+        exe_url: cdn_url,
         published_at: release.published_at,
     })
 }
 
-pub fn fetch_latest_version() -> Result<(String, bool), String> {
+pub fn fetch_latest_version() -> Result<String, String> {
     let client = build_client(15)?;
     let release = fetch_latest_release(&client)?;
 
     let tag = &release.tag_name;
     let tag_version = tag.strip_prefix('v').unwrap_or(tag).to_string();
-    Ok((tag_version, true))
+    Ok(tag_version)
 }
 
 pub fn download_update(url: &str, app: &AppHandle) -> Result<PathBuf, String> {
     let client = build_client(600)?;
 
-    let download_url = cdn_asset_url(url);
-    let mut resp = client.get(&download_url).send().map_err(|e| e.to_string())?;
-
-    if !resp.status().is_success() {
-        return Err(format!("下载失败，HTTP {}", resp.status()));
-    }
+    let urls = asset_urls(url);
+    let mut resp = try_get(&client, &urls)?;
 
     let total_size = resp.content_length().unwrap_or(0);
 

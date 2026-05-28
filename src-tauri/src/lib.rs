@@ -667,8 +667,7 @@ fn install_update(exe_path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn get_latest_version() -> Result<String, String> {
-    let (version, _) = updater::fetch_latest_version()?;
-    Ok(version)
+    updater::fetch_latest_version()
 }
 
 #[tauri::command]
