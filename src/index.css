@@ -1875,6 +1875,11 @@ button:disabled {
   }
 }
 
+/* Toast z-index above sticky nav */
+.toast-region {
+  z-index: 200 !important;
+}
+
 /* Auto.cfg editor */
 .auto-cfg-grid {
   display: grid;
@@ -2086,6 +2091,11 @@ button:disabled {
 
 .version-value.has-update {
   color: var(--accent);
+}
+
+.version-value.check-failed {
+  color: var(--text-muted);
+  font-size: 15px;
 }
 
 .version-update-hint {

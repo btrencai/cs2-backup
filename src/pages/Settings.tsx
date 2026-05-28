@@ -51,24 +51,32 @@ export default function Settings() {
   const [defaultBackupPath, setDefaultBackupPath] = useState("");
   const [appVersion, setAppVersion] = useState("");
   const [latestVersion, setLatestVersion] = useState("");
+  const [latestCheckFailed, setLatestCheckFailed] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextSettings, defaultPath, detectedTargets, currentVer, latestVer] = await Promise.all([
+      const [nextSettings, defaultPath, detectedTargets, currentVer] = await Promise.all([
         getSettings(),
         getDefaultBackupPath(),
         detectConfigTargets(),
         getAppVersion(),
-        getLatestVersion().catch(() => ""),
       ]);
       setSettings(nextSettings);
       setDefaultBackupPath(defaultPath);
       setTargets(detectedTargets);
       setAppVersion(currentVer);
-      setLatestVersion(latestVer);
+
+      try {
+        const latestVer = await getLatestVersion();
+        setLatestVersion(latestVer);
+        setLatestCheckFailed(false);
+      } catch {
+        setLatestVersion("");
+        setLatestCheckFailed(true);
+      }
     } catch (e) {
       toast.danger("加载设置失败", { description: String(e) });
     } finally {
@@ -122,14 +130,21 @@ export default function Settings() {
       if (info) {
         setUpdateInfo(info);
         setLatestVersion(info.version);
+        setLatestCheckFailed(false);
         toast.success("发现新版本", { description: `${info.tag} 已发布` });
       } else {
-        const latest = await getLatestVersion().catch(() => "");
-        if (latest) setLatestVersion(latest);
+        try {
+          const latest = await getLatestVersion();
+          setLatestVersion(latest);
+          setLatestCheckFailed(false);
+        } catch {
+          setLatestCheckFailed(true);
+        }
         setUpdateInfo(null);
         toast.success("已是最新版本", { description: `当前版本 v${currentVer}` });
       }
     } catch (e) {
+      setLatestCheckFailed(true);
       toast.danger("检测更新失败", { description: String(e) });
     } finally {
       setCheckingUpdate(false);
@@ -244,8 +259,8 @@ export default function Settings() {
           </div>
           <div className="version-item">
             <span className="version-label">最新版本</span>
-            <span className={`version-value${updateInfo ? " has-update" : ""}`}>
-              {latestVersion ? `v${latestVersion}` : "未检测"}
+            <span className={`version-value${updateInfo ? " has-update" : latestCheckFailed ? " check-failed" : ""}`}>
+              {latestVersion ? `v${latestVersion}` : latestCheckFailed ? "检测失败" : "未检测"}
             </span>
           </div>
           {updateInfo && (
