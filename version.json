@@ -1,0 +1,10 @@
+{
+  "version": "2.2.1",
+  "tag": "v2.2.1",
+  "published_at": "2026-05-27",
+  "body": "- 设置页版本信息与手动检测更新\n- GitHub 更新请求统一使用 CDN 加速\n- Auto.cfg 可视化编辑器\n- 自动更新检测与静默重启安装\n- 修复编辑器保存并关闭 bug\n- 提取共享组件、仪表盘总大小统计\n- list_backups 性能优化",
+  "assets": {
+    "exe": "https://github.com/btrencai/cs2-backup/releases/download/v2.2.1/CS2%20Config%20Backup_2.2.1_x64-setup.exe",
+    "msi": "https://github.com/btrencai/cs2-backup/releases/download/v2.2.1/CS2%20Config%20Backup_2.2.1_x64_zh-CN.msi"
+  }
+}

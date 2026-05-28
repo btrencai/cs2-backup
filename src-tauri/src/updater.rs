@@ -7,39 +7,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Emitter};
 
-const REPO: &str = "btrencai/cs2-backup";
-const DIRECT_API: &str = "https://api.github.com";
-
-/// CDN proxies for GitHub — tried in order, first success wins.
-const CDN_PROXIES: &[&str] = &[
-    "https://ghproxy.cn/",
-    "https://mirror.ghproxy.com/",
-    "https://ghfast.top/",
-];
-
-fn api_urls() -> Vec<String> {
-    let direct = format!("{DIRECT_API}/repos/{REPO}/releases/latest");
-    let mut urls: Vec<String> = CDN_PROXIES
-        .iter()
-        .map(|cdn| format!("{cdn}{direct}"))
-        .collect();
-    urls.push(direct);
-    urls
-}
-
-fn asset_urls(original: &str) -> Vec<String> {
-    if !original.starts_with("https://github.com/")
-        && !original.starts_with("https://objects.githubusercontent.com/")
-    {
-        return vec![original.to_string()];
-    }
-    let mut urls: Vec<String> = CDN_PROXIES
-        .iter()
-        .map(|cdn| format!("{cdn}{original}"))
-        .collect();
-    urls.push(original.to_string());
-    urls
-}
+const VERSION_URL: &str = "https://cdn.jsdelivr.net/gh/btrencai/cs2-backup@main/version.json";
+const DOWNLOAD_CDN: &str = "https://ghproxy.net/";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateInfo {
@@ -51,17 +20,17 @@ pub struct UpdateInfo {
 }
 
 #[derive(Deserialize)]
-struct GhRelease {
-    tag_name: String,
+struct VersionManifest {
+    version: String,
+    tag: String,
     body: String,
     published_at: String,
-    assets: Vec<GhAsset>,
+    assets: AssetUrls,
 }
 
 #[derive(Deserialize)]
-struct GhAsset {
-    name: String,
-    browser_download_url: String,
+struct AssetUrls {
+    exe: String,
 }
 
 fn build_client(timeout_secs: u64) -> Result<Client, String> {
@@ -72,33 +41,35 @@ fn build_client(timeout_secs: u64) -> Result<Client, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Try each URL in order; return the first successful response.
-fn try_get(client: &Client, urls: &[String]) -> Result<reqwest::blocking::Response, String> {
-    let mut last_err = String::new();
-    for url in urls {
-        match client.get(url).send() {
-            Ok(resp) if resp.status().is_success() => return Ok(resp),
-            Ok(resp) => last_err = format!("HTTP {}", resp.status()),
-            Err(e) => last_err = e.to_string(),
-        }
+fn fetch_manifest(client: &Client) -> Result<VersionManifest, String> {
+    let resp = client
+        .get(VERSION_URL)
+        .send()
+        .map_err(|e| format!("网络请求失败: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status()));
     }
-    Err(format!("所有连接均失败: {last_err}"))
+
+    resp.json::<VersionManifest>()
+        .map_err(|e| format!("解析 version.json 失败: {e}"))
 }
 
-fn fetch_latest_release(client: &Client) -> Result<GhRelease, String> {
-    let urls = api_urls();
-    let resp = try_get(client, &urls)?;
-    resp.json::<GhRelease>()
-        .map_err(|e| format!("解析响应失败: {e}"))
+fn proxied_download_url(original: &str) -> String {
+    if original.starts_with("https://github.com/")
+        || original.starts_with("https://objects.githubusercontent.com/")
+    {
+        format!("{DOWNLOAD_CDN}{original}")
+    } else {
+        original.to_string()
+    }
 }
 
 pub fn check_github_update(current_version: &str) -> Option<UpdateInfo> {
     let client = build_client(15).ok()?;
-    let release = fetch_latest_release(&client).ok()?;
+    let manifest = fetch_manifest(&client).ok()?;
 
-    let tag = &release.tag_name;
-    let tag_version = tag.strip_prefix('v').unwrap_or(tag);
-
+    let tag_version = manifest.version.as_str();
     let latest = Version::parse(tag_version).ok()?;
     let current = Version::parse(current_version).ok()?;
 
@@ -106,37 +77,33 @@ pub fn check_github_update(current_version: &str) -> Option<UpdateInfo> {
         return None;
     }
 
-    let exe_asset = release.assets.iter().find(|asset| {
-        let lower = asset.name.to_lowercase();
-        lower.contains("setup") && lower.ends_with(".exe")
-    })?;
-
-    let raw_url = exe_asset.browser_download_url.clone();
-    let cdn_url = asset_urls(&raw_url).into_iter().next().unwrap_or(raw_url);
-
     Some(UpdateInfo {
-        version: tag_version.to_string(),
-        tag: tag.to_string(),
-        body: release.body,
-        exe_url: cdn_url,
-        published_at: release.published_at,
+        version: manifest.version,
+        tag: manifest.tag,
+        body: manifest.body,
+        exe_url: proxied_download_url(&manifest.assets.exe),
+        published_at: manifest.published_at,
     })
 }
 
 pub fn fetch_latest_version() -> Result<String, String> {
     let client = build_client(15)?;
-    let release = fetch_latest_release(&client)?;
-
-    let tag = &release.tag_name;
-    let tag_version = tag.strip_prefix('v').unwrap_or(tag).to_string();
-    Ok(tag_version)
+    let manifest = fetch_manifest(&client)?;
+    Ok(manifest.version)
 }
 
 pub fn download_update(url: &str, app: &AppHandle) -> Result<PathBuf, String> {
     let client = build_client(600)?;
 
-    let urls = asset_urls(url);
-    let mut resp = try_get(&client, &urls)?;
+    let download_url = proxied_download_url(url);
+    let mut resp = client
+        .get(&download_url)
+        .send()
+        .map_err(|e| format!("下载请求失败: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("下载失败，HTTP {}", resp.status()));
+    }
 
     let total_size = resp.content_length().unwrap_or(0);
 
