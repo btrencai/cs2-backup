@@ -7,7 +7,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CfgSection {
     pub name: String,
-    pub header_lines: Vec<String>,
+    pub raw_content: String,
     pub entries: Vec<CfgEntry>,
 }
 
@@ -25,8 +25,10 @@ static SECTION_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"//═+\s*\d+\.\s*(.+?)\s*═+").unwrap()
 });
 
+/// Matches: key  value  // comment  OR  key  value (no comment)
+/// Group 1 = key, Group 2 = value, Group 3 = comment (optional)
 static ENTRY_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(\S+)\s+(\S.*?)(?:\s*//\s*(.*))?$").unwrap()
+    Regex::new(r"^(\S+)\s+(\S.*?)\s*(?://\s*(.*))?$").unwrap()
 });
 
 static RANGE_RE: Lazy<Regex> = Lazy::new(|| {
@@ -52,59 +54,14 @@ fn parse_range(comment: &str) -> (Option<f64>, Option<f64>) {
     (None, None)
 }
 
-pub fn parse_cfg(content: &str) -> Vec<CfgSection> {
-    let mut sections: Vec<CfgSection> = Vec::new();
-    let mut current_section: Option<CfgSection> = None;
-    let mut pending_header: Vec<String> = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-
-        if let Some(caps) = SECTION_RE.captures(trimmed) {
-            if let Some(sec) = current_section.take() {
-                sections.push(sec);
-            }
-            let name = caps.get(1).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
-            let mut header = pending_header.clone();
-            header.push(line.to_string());
-            pending_header.clear();
-            current_section = Some(CfgSection {
-                name,
-                header_lines: header,
-                entries: Vec::new(),
-            });
-            continue;
-        }
-
-        if let Some(ref mut sec) = current_section {
-            if trimmed.is_empty() || trimmed.starts_with("//──") || trimmed.starts_with("//══") {
-                sec.header_lines.push(line.to_string());
-                continue;
-            }
-            if let Some(entry) = parse_entry(trimmed) {
-                sec.entries.push(entry);
-            } else {
-                sec.header_lines.push(line.to_string());
-            }
-        } else {
-            pending_header.push(line.to_string());
-        }
-    }
-
-    if let Some(sec) = current_section {
-        sections.push(sec);
-    }
-
-    sections
-}
-
-fn parse_entry(line: &str) -> Option<CfgEntry> {
+fn try_parse_entry(line: &str) -> Option<CfgEntry> {
     let stripped = line.strip_prefix("//").unwrap_or(line);
 
-    if stripped.starts_with("exec ")
+    if stripped.starts_with("bind ")
         || stripped.starts_with("alias ")
-        || stripped.starts_with("bind ")
-        || stripped.starts_with("echo ")
+        || stripped.starts_with("exec ")
+        || stripped.starts_with("echo")
+        || stripped.starts_with("binddefaults")
     {
         return None;
     }
@@ -114,7 +71,7 @@ fn parse_entry(line: &str) -> Option<CfgEntry> {
     let value = caps.get(2)?.as_str().trim().to_string();
     let comment = caps.get(3).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
 
-    if key == "exec" || key == "alias" || key == "bind" || key == "echo" {
+    if key == "bind" || key == "alias" || key == "exec" || key == "echo" {
         return None;
     }
 
@@ -131,40 +88,107 @@ fn parse_entry(line: &str) -> Option<CfgEntry> {
     })
 }
 
-pub fn serialize_cfg(sections: &[CfgSection]) -> String {
-    let mut out = String::new();
+pub fn parse_cfg(content: &str) -> Vec<CfgSection> {
+    let mut sections: Vec<CfgSection> = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_lines: Vec<String> = Vec::new();
+    let mut current_entries: Vec<CfgEntry> = Vec::new();
 
-    for (i, section) in sections.iter().enumerate() {
-        if i > 0 {
-            out.push_str("\n\n");
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if let Some(caps) = SECTION_RE.captures(trimmed) {
+            // Flush previous section
+            if let Some(name) = current_name.take() {
+                sections.push(CfgSection {
+                    name,
+                    raw_content: current_lines.join("\n"),
+                    entries: current_entries,
+                });
+                current_lines = Vec::new();
+                current_entries = Vec::new();
+            }
+
+            let name = caps.get(1).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
+            current_name = Some(name);
+            current_lines.push(line.to_string());
+
+            // Try to parse the section header line itself as an entry (unlikely, but safe)
+            if let Some(entry) = try_parse_entry(trimmed) {
+                current_entries.push(entry);
+            }
+            continue;
         }
-        for hline in &section.header_lines {
-            out.push_str(hline);
-            out.push('\n');
-        }
 
-        let max_key_len = section
-            .entries
-            .iter()
-            .map(|e| e.key.len())
-            .max()
-            .unwrap_or(0);
-
-        for entry in &section.entries {
-            let pad = " ".repeat(max_key_len.saturating_sub(entry.key.len()) + 4);
-            if entry.comment.is_empty() {
-                out.push_str(&format!("{}{}{}\n", entry.key, pad, entry.value));
-            } else {
-                out.push_str(&format!(
-                    "{}{}{}// {}\n",
-                    entry.key, pad, entry.value, entry.comment
-                ));
+        if current_name.is_some() {
+            current_lines.push(line.to_string());
+            if let Some(entry) = try_parse_entry(trimmed) {
+                current_entries.push(entry);
             }
         }
+        // Lines before the first section are discarded (header comments)
     }
 
-    out.push_str("\n\nhost_writeconfig;\n");
-    out
+    // Flush last section
+    if let Some(name) = current_name {
+        sections.push(CfgSection {
+            name,
+            raw_content: current_lines.join("\n"),
+            entries: current_entries,
+        });
+    }
+
+    sections
+}
+
+/// Line-preserving serialization: only replace values of entries that exist
+/// in the parsed data, keeping every other line (bind, exec, alias, echo,
+/// comments, formatting) completely untouched.
+pub fn serialize_cfg(sections: &[CfgSection]) -> String {
+    let mut output_sections: Vec<String> = Vec::new();
+
+    for section in sections {
+        let mut result = section.raw_content.clone();
+
+        for entry in &section.entries {
+            result = replace_entry_value(&result, &entry.key, &entry.value);
+        }
+
+        output_sections.push(result);
+    }
+
+    output_sections.join("\n")
+}
+
+/// Replace the value of a specific key in the raw text, preserving
+/// all other content on the line (spacing, comment, etc.)
+fn replace_entry_value(text: &str, key: &str, new_value: &str) -> String {
+    let escaped = regex::escape(key);
+    let pattern = format!(r"(?m)^(\s*{}\s+)(\S.*?)(\s*//.*)?$", escaped);
+    let re = Regex::new(&pattern).unwrap();
+
+    re.replace_all(text, |caps: &regex::Captures| {
+        let prefix = caps.get(1).map_or("", |m| m.as_str());
+        let after = caps.get(2).map_or("", |m| m.as_str()).trim_end();
+        let comment_part = caps.get(3).map_or("", |m| m.as_str());
+
+        // If the value part still contains "//", the comment was inline
+        // (e.g., "value // comment" without leading spaces before //)
+        if let Some(idx) = after.find("//") {
+            let _actual_value = after[..idx].trim_end();
+            let inline_comment = &after[idx..];
+            if comment_part.is_empty() {
+                format!("{}{} {}", prefix, new_value, inline_comment)
+            } else {
+                format!("{}{} {}{}", prefix, new_value, inline_comment, comment_part)
+            }
+        } else if comment_part.is_empty() {
+            format!("{}{}", prefix, new_value)
+        } else {
+            format!("{}{}{}", prefix, new_value, comment_part)
+        }
+    })
+    .to_string()
 }
 
 pub fn read_cfg_file(dir: &str) -> Result<(String, Vec<CfgSection>), String> {
